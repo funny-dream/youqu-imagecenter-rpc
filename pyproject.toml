@@ -1,0 +1,31 @@
+[project]
+name = "youqu-imagecenter-rpc"
+description = ""
+authors = [
+    { name = "mikigo", email = "huangmingqiang@uniontech.com" },
+]
+dependencies = [
+    "funnylog",
+    "easyprocess",
+    "pyscreenshot",
+]
+dynamic = [
+  "version",
+]
+requires-python = ">=3.7"
+readme = "README.md"
+license = { text = "GPL2.0" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+[tool.hatch]
+version = { path = "youqu_imagecenter_rpc/__version__.py" }
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "/youqu_imagecenter_rpc",
+]
+
