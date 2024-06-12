@@ -3,4 +3,4 @@
 # SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
 # SPDX-License-Identifier: Apache Software License
 
-__version__ = "0.1.0"
+__version__ = "2024.06.12"

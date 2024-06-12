@@ -1,32 +1,24 @@
 #!/usr/bin/env python3
 # _*_ coding:utf-8 _*_
-
 # SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
-
 # SPDX-License-Identifier: Apache Software License
-import math
-from os.path import join, dirname, abspath, exists
-from os import makedirs
-from time import time
-from socketserver import ThreadingMixIn
-from xmlrpc.server import SimpleXMLRPCServer
 
+from os import makedirs
+from os.path import join, dirname, abspath, exists
+from socketserver import ThreadingMixIn
+from time import time
+from xmlrpc.server import SimpleXMLRPCServer
 
 import cv2 as cv
 import numpy as np
-from numpy import sum
-from numpy import ndarray
-from numpy import array
 
 
 class ThreadXMLRPCServer(ThreadingMixIn, SimpleXMLRPCServer):
     pass
 
 
-CURRENT_DIR = dirname(abspath(__file__))
-
-
 def image_put(data):
+    CURRENT_DIR = dirname(abspath(__file__))
     pic_dir = join(CURRENT_DIR, "pic")
     if not exists(pic_dir):
         makedirs(pic_dir)
@@ -89,9 +81,12 @@ def match_image_by_opencv(template_path, source_path, rate=None, multiple=False)
             return result_list
         return False
 
+
 def server():
-    from youqu_imagecenter_rpc.conf import setting
-    server = ThreadXMLRPCServer(("0.0.0.0", setting.PORT), allow_none=True)
+    import sys
+    sys.path.append(dirname(abspath(__file__)))
+    from conf import conf
+    server = ThreadXMLRPCServer(("0.0.0.0", conf.PORT), allow_none=True)
     server.register_function(image_put, "image_put")
     server.register_function(match_image_by_opencv, "match_image_by_opencv")
     print(f"监听客户端请求... {server.server_address}")

@@ -12,29 +12,18 @@ from typing import List, Union
 from xmlrpc.client import Binary
 from xmlrpc.client import ServerProxy
 
+from funnylog import logger
+import easyprocess
+
 from youqu_imagecenter_rpc.install_depends import install_depends
 
 install_depends()
 
-import easyprocess
+import pyscreenshot
+from PIL import Image
 
-try:
-    import cv2 as cv
-    import numpy as np
+from youqu_imagecenter_rpc.conf import conf
 
-    GET_OPENCV_FORM_RPC = False
-except ModuleNotFoundError:
-    GET_OPENCV_FORM_RPC = True
-
-try:
-    import pyscreenshot
-    from PIL import Image
-except ModuleNotFoundError:
-    pass
-
-from youqu_imagecenter_rpc.conf import setting
-
-logger = logging.getLogger("image_center")
 
 
 class TemplateElementNotFound(BaseException):
@@ -92,46 +81,48 @@ class ImageCenter:
         """
         # pylint: disable=I1101,E1101
         if rate is None:
-            rate = float(setting.IMAGE_RATE)
-        screen = setting.SCREEN_CACHE
+            rate = float(conf.IMAGE_RATE)
+        screen = conf.SCREEN_CACHE
 
         if not picture_abspath:
             if screen_bbox:
                 screen = cls.save_temporary_picture(*screen_bbox) + ".png"
             else:
-                if setting.IS_LINUX:
-                    if setting.IS_X11:
+                if conf.IS_LINUX:
+                    if conf.IS_X11:
                         try:
                             pyscreenshot.grab().save(screen)
                         except easyprocess.EasyProcessError:
                             ...
                     else:
-                        # setting.IS_WAYLAND
+                        # conf.IS_WAYLAND
                         screen = os.popen(cls.wayland_screen_dbus).read().strip("\n")
                 else:
-                    # setting.IS_WINDOWS or setting.IS_MACOS:
+                    # conf.IS_WINDOWS or conf.IS_MACOS:
                     # for windows and macos
                     pyscreenshot.grab().save(screen)
 
         else:
             screen = picture_abspath
+
         template_path = ""
+        image_path = os.path.expanduser(image_path)
         # 如果传入的image_path参数不带文件后缀名，就根据文件类型判断文件是否存在，存在则将后缀类型（'.png','.jpg','.jpeg'）加上
         if not image_path.endswith(('.png', '.jpg', '.jpeg')):
             if os.path.exists(f"{image_path}.png"):
-                template_path = os.path.expanduser(f"{image_path}.png")
+                template_path = f"{image_path}.png"
             elif os.path.exists(f"{image_path}.jpg"):
-                template_path = os.path.expanduser(f"{image_path}.jpg")
+                template_path = f"{image_path}.jpg"
             elif os.path.exists(f"{image_path}.jpeg"):
-                template_path = os.path.expanduser(f"{image_path}.jpeg")
+                template_path = f"{image_path}.jpeg"
             else:
                 logger.warning(f"The image format is not supported. Please confirm your image_path again")
         else:
             # image_path参数带有后缀名，不做任何添加
-            template_path = os.path.expanduser(f"{image_path}")
+            template_path = image_path
         if not template_path:
             raise ValueError
-        server = ServerProxy(f"http://{setting.SERVER_IP}:{setting.PORT}", allow_none=True)
+        server = ServerProxy(f"http://{conf.SERVER_IP}:{conf.PORT}", allow_none=True)
         screen_rb = open(screen, "rb")
         template_rb = open(template_path, "rb")
         for _ in range(network_retry + 1):
@@ -145,37 +136,8 @@ class ImageCenter:
                 )
             except OSError as exc:
                 raise EnvironmentError(
-                    f"OCR 服务器链接失败. http://{setting.SERVER_IP}:{setting.PORT}"
+                    f"OCR 服务器链接失败. http://{conf.SERVER_IP}:{conf.PORT}"
                 ) from exc
-
-
-    @classmethod
-    def save_temporary_picture(cls, _x: int, _y: int, width: int, height: int, log_level="info"):
-        """
-         截取屏幕上指定区域图片，保存临时图片，并返回图片路径
-        :param _x: 左上角横坐标
-        :param _y: 左上角纵坐标
-        :param width: 宽度
-        :param height: 高度
-        :param log_level: 日志级别
-        :return: 图片路径
-        """
-        # pylint: disable=I1101,E1101
-        if not os.path.exists(setting.TMPDIR):
-            os.popen(f"mkdir {setting.TMPDIR}")
-        _pic_path = f"{setting.TMPDIR}/{int(time.time())}"
-
-        if setting.IS_X11:
-            pyscreenshot.grab().save(setting.SCREEN_CACHE)
-            pyscreenshot.grab(bbox=(_x, _y, _x + width, _y + height)).save(
-                _pic_path + ".png"
-            )
-            getattr(logger, log_level)(f"截取区域左上角 ({_x}, {_y}), 长宽 {width}, {height}")
-        else:
-            screen = os.popen(cls.wayland_screen_dbus).read().strip("\n")
-            img = cv.imread(screen)
-            cv.imwrite(_pic_path + ".png", img[_y: _y + height, _x: _x + width])
-        return _pic_path
 
     @classmethod
     def find_image(
@@ -208,17 +170,17 @@ class ImageCenter:
         :param max_match_number: 最大匹配次数
         :return: 坐标元组
         """
-        network_retry = network_retry if network_retry else setting.NETWORK_RETRY
-        pause = pause if pause else setting.PAUSE
-        timeout = timeout if timeout else setting.TIMEOUT
-        max_match_number = max_match_number if max_match_number else setting.MAX_MATCH_NUMBER
+        network_retry = network_retry if network_retry else conf.NETWORK_RETRY
+        pause = pause if pause else conf.PAUSE
+        timeout = timeout if timeout else conf.TIMEOUT
+        max_match_number = max_match_number if max_match_number else conf.MAX_MATCH_NUMBER
 
         retry_number = int(max_match_number)
         if retry_number < 0:
             raise ValueError("重试次数不能小于0")
 
         if rate is None:
-            rate = float(setting.IMAGE_RATE)
+            rate = float(conf.IMAGE_RATE)
         try:
             for element in widget:
                 start_time = time.time()
@@ -275,7 +237,7 @@ class ImageCenter:
         :return:
         """
         if rate is None:
-            rate = float(setting.IMAGE_RATE)
+            rate = float(conf.IMAGE_RATE)
         try:
             return bool(cls.find_image(widget, rate=rate))
         # pylint: disable=broad-except
@@ -386,14 +348,14 @@ class ImageCenterByRGB:
         return same / (same + diff) >= rate
 
     @classmethod
-    def image_center_by_rgb(cls, image_name=None, image_path=None, rate=setting.IMAGE_RATE):
+    def image_center_by_rgb(cls, image_name=None, image_path=None, rate=conf.IMAGE_RATE):
         """
         By comparing the RGB values of the small image with the large
         image on the screen, the coordinates of the small image on
         the screen are returned.
         """
         if not image_path:
-            image_path = setting.PIC_PATH
+            image_path = conf.PIC_PATH
         small = Image.open(os.path.join(image_path, f"{image_name}.png"))
         sdata = small.load()
         big = pyscreenshot.grab()

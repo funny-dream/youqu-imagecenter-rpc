@@ -68,4 +68,4 @@ class _Setting:
         IS_WAYLAND = DISPLAY_SERVER == DisplayServer.wayland.value
 
 
-setting = _Setting()
+conf = _Setting()
