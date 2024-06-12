@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 # _*_ coding:utf-8 _*_
-
 # SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
-
 # SPDX-License-Identifier: Apache Software License
-import logging
 import os
 import random
 import time
@@ -12,8 +9,8 @@ from typing import List, Union
 from xmlrpc.client import Binary
 from xmlrpc.client import ServerProxy
 
-from funnylog import logger
 import easyprocess
+from funnylog import logger
 
 from youqu_imagecenter_rpc.install_depends import install_depends
 
@@ -23,7 +20,6 @@ import pyscreenshot
 from PIL import Image
 
 from youqu_imagecenter_rpc.conf import conf
-
 
 
 class TemplateElementNotFound(BaseException):
@@ -53,9 +49,23 @@ class TemplatePictureNotExist(BaseException):
 
 
 class ImageCenter:
-    """图像识别的工具类"""
 
     wayland_screen_dbus = "qdbus org.kde.KWin /Screenshot screenshotFullscreen"
+
+    @classmethod
+    def server_url(cls):
+        return f"http://{conf.SERVER_IP}:{conf.PORT}"
+
+    @classmethod
+    def server(cls):
+        return ServerProxy(cls.server_url(), allow_none=True)
+
+    @classmethod
+    def check_connected(cls):
+        try:
+            return cls.server().check_connected()
+        except OSError:
+            return False
 
     @classmethod
     def _match_image_by_opencv(
@@ -65,7 +75,6 @@ class ImageCenter:
             multiple: bool = False,
             picture_abspath: str = None,
             screen_bbox: List[int] = None,
-            log_level: str = "info",
             network_retry: int = 1,
     ):
         """
@@ -86,7 +95,8 @@ class ImageCenter:
 
         if not picture_abspath:
             if screen_bbox:
-                screen = cls.save_temporary_picture(*screen_bbox) + ".png"
+                # screen = cls.save_temporary_picture(*screen_bbox) + ".png"
+                ...  # TODO
             else:
                 if conf.IS_LINUX:
                     if conf.IS_X11:
@@ -122,21 +132,20 @@ class ImageCenter:
             template_path = image_path
         if not template_path:
             raise ValueError
-        server = ServerProxy(f"http://{conf.SERVER_IP}:{conf.PORT}", allow_none=True)
         screen_rb = open(screen, "rb")
         template_rb = open(template_path, "rb")
         for _ in range(network_retry + 1):
             try:
-                screen_path = server.image_put(Binary(screen_rb.read()))
+                screen_path = cls.server().image_put(Binary(screen_rb.read()))
                 screen_rb.close()
-                tpl_path = server.image_put(Binary(template_rb.read()))
+                tpl_path = cls.server().image_put(Binary(template_rb.read()))
                 template_rb.close()
-                return server.match_image_by_opencv(
+                return cls.server().match_image_by_opencv(
                     tpl_path, screen_path, rate, multiple
                 )
             except OSError as exc:
                 raise EnvironmentError(
-                    f"OCR 服务器链接失败. http://{conf.SERVER_IP}:{conf.PORT}"
+                    f"IMAGE PRC服务器链接失败. http://{conf.SERVER_IP}:{conf.PORT}"
                 ) from exc
 
     @classmethod
@@ -147,7 +156,6 @@ class ImageCenter:
             multiple: bool = False,
             picture_abspath: str = None,
             screen_bbox: List[int] = None,
-            log_level: str = "info",
             network_retry: int = None,
             pause: [int, float] = None,
             timeout: [int, float] = None,
@@ -191,7 +199,6 @@ class ImageCenter:
                         multiple=multiple,
                         picture_abspath=picture_abspath,
                         screen_bbox=screen_bbox,
-                        log_level=log_level,
                         network_retry=network_retry,
                     )
                     if not locate:
