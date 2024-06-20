@@ -6,7 +6,6 @@ authors = [
 ]
 dependencies = [
     "funnylog",
-    "easyprocess",
     "pyscreenshot",
 ]
 dynamic = [
