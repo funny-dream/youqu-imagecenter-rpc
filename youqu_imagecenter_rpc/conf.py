@@ -57,12 +57,15 @@ class _Setting:
         # Linux
         IS_LINUX = True
         # 显示服务器
-        DISPLAY_SERVER = (
-                             popen("cat ~/.xsession-errors | grep XDG_SESSION_TYPE | head -n 1")
-                             .read()
-                             .split("=")[-1]
-                             .strip("\n")
-                         ) or ("x11" if popen("ps -ef | grep -v grep | grep kwin_x11").read() else "wayland")
+        if os.path.exists(os.path.expanduser("~/.xsession-errors")):
+            DISPLAY_SERVER = (
+                os.popen("cat ~/.xsession-errors | grep XDG_SESSION_TYPE | head -n 1")
+                .read()
+                .split("=")[-1]
+                .strip("\n")
+            )
+        else:
+            DISPLAY_SERVER = "x11" if os.popen("ps -ef | grep -v grep | grep kwin_x11").read() else "wayland"
 
         IS_X11 = DISPLAY_SERVER == DisplayServer.x11.value
         IS_WAYLAND = DISPLAY_SERVER == DisplayServer.wayland.value
